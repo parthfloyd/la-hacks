@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { motion } from 'framer-motion';
 import { Tilt } from 'react-tilt';
 import AOS from 'aos';
-import Slider from 'react-slick';
 import { MdHealthAndSafety, MdOutlineMonitorHeart, MdOutlineAssignment, MdOutlineWarning, 
   MdArrowForward, MdCheckCircle, MdPerson, MdOutlineHealthAndSafety } from 'react-icons/md';
 import { FaRobot, FaHeartbeat, FaBrain, FaUserMd, FaHospital, FaClipboardList, 
@@ -42,17 +41,6 @@ const LandingPage = () => {
       once: true,
     });
   }, []);
-
-  const testimonialSettings = {
-    dots: true,
-    infinite: true,
-    speed: 500,
-    slidesToShow: 1,
-    slidesToScroll: 1,
-    autoplay: true,
-    autoplaySpeed: 5000,
-    arrows: false,
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#EBF5F9] to-[#F1F7FA] overflow-hidden">
@@ -90,7 +78,6 @@ const LandingPage = () => {
             >
               <a href="#features" className="text-white hover:text-secondary-light transition-all">Features</a>
               <a href="#how-it-works" className="text-white hover:text-secondary-light transition-all">How It Works</a>
-              <a href="#testimonials" className="text-white hover:text-secondary-light transition-all">Testimonials</a>
               <Link 
                 href="/chat" 
                 className="px-4 py-2 rounded-full bg-white text-primary font-medium hover:bg-opacity-90 transition-all shadow-md"
@@ -148,7 +135,7 @@ const LandingPage = () => {
                 >
                 </motion.div>
                 <div className="absolute inset-8 bg-white rounded-full flex items-center justify-center shadow-lg">
-                  <div className="relative w-32 h-32">
+                  <div className="relative w-64 h-64">
                     <Image 
                       src="/images/brain-tech.svg" 
                       alt="AI Healthcare" 
@@ -410,97 +397,6 @@ const LandingPage = () => {
         <div className="absolute -bottom-16 -left-16 w-64 h-64 rounded-full bg-secondary-light opacity-5"></div>
       </section>
 
-      {/* Testimonials Section */}
-      <section id="testimonials" className="py-20 px-6 bg-gradient-to-br from-[#EBF5F9] to-[#F1F7FA]">
-        <div className="max-w-6xl mx-auto">
-          <div className="text-center mb-16" data-aos="fade-up">
-            <h2 className="text-3xl font-bold text-primary-dark mb-4">Patient Success Stories</h2>
-            <p className="text-lg text-gray-600 max-w-3xl mx-auto">
-              Discover how our AI Doctor has helped people improve their healthcare experience
-            </p>
-          </div>
-
-          <div className="max-w-3xl mx-auto" data-aos="fade-up">
-            <Slider {...testimonialSettings}>
-              <div className="p-4">
-                <div className="bg-white p-8 rounded-2xl shadow-md glass relative">
-                  <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-primary rounded-full flex items-center justify-center text-white">
-                    <span className="text-xl font-bold">"</span>
-                  </div>
-                  <div className="flex items-center gap-4 mb-6 mt-4">
-                    <div className="w-16 h-16 rounded-full bg-primary-light bg-opacity-20 flex items-center justify-center">
-                      <span className="text-xl font-bold text-primary">SM</span>
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-semibold text-primary-dark">Sarah Mitchell</h4>
-                      <p className="text-gray-500">Mother of two, 34</p>
-                    </div>
-                  </div>
-                  <p className="text-gray-600 mb-4 italic">
-                    "As a busy mom, I don't always have time to visit the doctor for minor concerns. HealthGuardian AI has been a lifesaver, providing reliable advice for my children's common health issues and helping me decide when we actually need to see a doctor."
-                  </p>
-                  <div className="flex gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <FaHeartbeat key={i} className="text-accent" />
-                    ))}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-4">
-                <div className="bg-white p-8 rounded-2xl shadow-md glass relative">
-                  <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-primary rounded-full flex items-center justify-center text-white">
-                    <span className="text-xl font-bold">"</span>
-                  </div>
-                  <div className="flex items-center gap-4 mb-6 mt-4">
-                    <div className="w-16 h-16 rounded-full bg-primary-light bg-opacity-20 flex items-center justify-center">
-                      <span className="text-xl font-bold text-primary">JT</span>
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-semibold text-primary-dark">James Thompson</h4>
-                      <p className="text-gray-500">Chronic condition patient, 47</p>
-                    </div>
-                  </div>
-                  <p className="text-gray-600 mb-4 italic">
-                    "Living with a chronic condition means I have lots of questions between doctor visits. The AI provides thoughtful answers that align with what my specialists recommend, and the consultation reports help me communicate better with my healthcare team."
-                  </p>
-                  <div className="flex gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <FaHeartbeat key={i} className="text-accent" />
-                    ))}
-                  </div>
-                </div>
-              </div>
-              
-              <div className="p-4">
-                <div className="bg-white p-8 rounded-2xl shadow-md glass relative">
-                  <div className="absolute -top-6 left-1/2 transform -translate-x-1/2 w-12 h-12 bg-primary rounded-full flex items-center justify-center text-white">
-                    <span className="text-xl font-bold">"</span>
-                  </div>
-                  <div className="flex items-center gap-4 mb-6 mt-4">
-                    <div className="w-16 h-16 rounded-full bg-primary-light bg-opacity-20 flex items-center justify-center">
-                      <span className="text-xl font-bold text-primary">EL</span>
-                    </div>
-                    <div>
-                      <h4 className="text-lg font-semibold text-primary-dark">Dr. Emily Liu</h4>
-                      <p className="text-gray-500">Family Physician</p>
-                    </div>
-                  </div>
-                  <p className="text-gray-600 mb-4 italic">
-                    "As a doctor, I appreciate how this tool helps patients come to appointments better informed. The AI gives medically sound advice and knows when to refer patients for professional care. It's becoming a valuable complement to traditional healthcare."
-                  </p>
-                  <div className="flex gap-1">
-                    {[...Array(5)].map((_, i) => (
-                      <FaHeartbeat key={i} className="text-accent" />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </Slider>
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
       <section className="py-20 px-6 bg-gradient-to-r from-primary-dark via-primary to-secondary text-white">
         <div className="max-w-4xl mx-auto text-center">
@@ -539,7 +435,6 @@ const LandingPage = () => {
             <div className="flex flex-wrap gap-8 justify-center">
               <a href="#features" className="hover:text-secondary-light transition-all">Features</a>
               <a href="#how-it-works" className="hover:text-secondary-light transition-all">How It Works</a>
-              <a href="#testimonials" className="hover:text-secondary-light transition-all">Testimonials</a>
               <Link href="/chat" className="hover:text-secondary-light transition-all">Chat</Link>
             </div>
           </div>
