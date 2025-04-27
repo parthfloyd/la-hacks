@@ -320,17 +320,11 @@ const ChatInterface: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen max-w-4xl mx-auto p-4 bg-gradient-to-br from-blue-50 to-teal-50">
-      {/* Header */}
-      <div className="bg-white shadow-md rounded-2xl px-6 py-4 mb-4 flex items-center justify-center">
-        <div className="flex items-center gap-2 text-teal-600">
-          <MdHealthAndSafety className="text-2xl" />
-          <h1 className="text-xl font-semibold">Healthcare AI Assistant</h1>
-        </div>
-      </div>
+    <div className="flex flex-col h-screen max-w-6xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
+      {/* Header has been moved to the page component */}
       
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto mb-4 p-6 bg-white rounded-2xl shadow-md relative">
+      <div className="flex-1 overflow-y-auto p-6 relative">
         {messages.map((message, index) => (
           <div
             key={index}
@@ -342,7 +336,7 @@ const ChatInterface: React.FC = () => {
               message.type === 'user' ? 'flex-row-reverse' : 'flex-row'
             }`}>
               <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                message.type === 'user' ? 'bg-green-500' : 'bg-teal-600' 
+                message.type === 'user' ? 'bg-teal-600' : 'bg-blue-500' 
               }`}>
                 {message.type === 'ai' ? (
                   <FaRobot className="text-white text-lg" />
@@ -353,20 +347,20 @@ const ChatInterface: React.FC = () => {
               <div
                 className={`px-4 py-3 rounded-2xl ${
                   message.type === 'user'
-                    ? 'bg-green-500 text-white rounded-tr-none'
+                    ? 'bg-teal-600 text-white rounded-tr-none'
                     : 'bg-gray-100 text-gray-800 rounded-tl-none'
                 } ${
                   message.isPartial 
-                    ? 'border-2 border-teal-300 relative' 
+                    ? 'border-2 border-blue-300 relative' 
                     : ''
                 }`}
               >
                 {message.content}
                 {message.isPartial && (
                   <div className="absolute bottom-1 right-1 flex">
-                    <span className="w-2 h-2 bg-teal-600 rounded-full animate-bounce mx-0.5"></span>
-                    <span className="w-2 h-2 bg-teal-600 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.2s' }}></span>
-                    <span className="w-2 h-2 bg-teal-600 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.4s' }}></span>
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce mx-0.5"></span>
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.2s' }}></span>
+                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.4s' }}></span>
                   </div>
                 )}
               </div>
@@ -376,14 +370,14 @@ const ChatInterface: React.FC = () => {
         {isStreamingResponse && !messages.some(m => m.isPartial) && (
           <div className="mb-4 flex justify-start">
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
                 <FaRobot className="text-white text-lg" />
               </div>
               <div className="px-4 py-3 rounded-2xl bg-gray-100 rounded-tl-none">
                 <div className="flex">
-                  <span className="w-2 h-2 bg-teal-600 rounded-full animate-bounce mx-0.5"></span>
-                  <span className="w-2 h-2 bg-teal-600 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.2s' }}></span>
-                  <span className="w-2 h-2 bg-teal-600 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.4s' }}></span>
+                  <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce mx-0.5"></span>
+                  <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.2s' }}></span>
+                  <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.4s' }}></span>
                 </div>
               </div>
             </div>
@@ -394,7 +388,7 @@ const ChatInterface: React.FC = () => {
 
       {/* Connection Status */}
       {!isConnected && (
-        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-300 text-yellow-800 rounded-2xl text-center shadow-md">
+        <div className="mx-6 mb-4 p-4 bg-yellow-50 border border-yellow-300 text-yellow-800 rounded-2xl text-center shadow-md">
           <p className="mb-2 font-medium">Connection to AI service is closed.</p>
           <button 
             onClick={reconnectSession}
@@ -407,7 +401,7 @@ const ChatInterface: React.FC = () => {
       )}
 
       {/* Input Area */}
-      <div className="bg-white p-5 rounded-2xl shadow-md">
+      <div className="px-6 py-5 border-t border-gray-200 bg-white">
         <div className="flex gap-2 mb-3">
           <button
             onClick={toggleVideo}
@@ -463,7 +457,7 @@ const ChatInterface: React.FC = () => {
           <button
             onClick={handleSendMessage}
             className={`p-3 rounded-full ${
-              isProcessing || !isConnected || isStreamingResponse || !inputText.trim() ? 'bg-gray-400' : 'bg-green-500 hover:bg-green-600'
+              isProcessing || !isConnected || isStreamingResponse || !inputText.trim() ? 'bg-gray-400' : 'bg-teal-600 hover:bg-teal-700'
             } text-white flex items-center justify-center transition-colors shadow-sm`}
             disabled={isProcessing || !isConnected || isStreamingResponse || !inputText.trim()}
           >
