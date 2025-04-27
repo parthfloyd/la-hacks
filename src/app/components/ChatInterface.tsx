@@ -143,6 +143,26 @@ const ChatInterface: React.FC = () => {
   // Close the report modal
   const handleCloseReport = () => {
     setReportContent(null);
+    
+    // Clear only the UI chat messages
+    // The conversation context is preserved in the Gemini service since we don't restart the session
+    setMessages([]);
+    
+    // Add a new welcome message
+    setTimeout(() => {
+      setMessages([
+        {
+          type: 'ai',
+          content: "Hello! I'm your HealthGuardian AI assistant.",
+          mediaType: 'text',
+        },
+        {
+          type: 'ai',
+          content: "Your previous consultation has been saved and I still have the context from our conversation. How can I help you today?",
+          mediaType: 'text',
+        }
+      ]);
+    }, 300);
   };
   
   // Close the emergency alert
