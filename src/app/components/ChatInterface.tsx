@@ -35,6 +35,11 @@ export interface WebcamProps {
   webcamRef: React.RefObject<any>;
 }
 
+export interface DropzoneProps {
+  isDisabled: boolean;
+  onFilesSelected: (files: File[]) => void;
+}
+
 const ChatInterface: React.FC = () => {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');

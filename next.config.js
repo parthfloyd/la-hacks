@@ -11,6 +11,16 @@ const nextConfig = {
         fs: false,
         net: false,
         tls: false,
+        dns: false,
+        child_process: false,
+        stream: false,
+        http: false,
+        https: false,
+        zlib: false,
+        path: false,
+        crypto: require.resolve('crypto-browserify'),
+        os: false,
+        buffer: require.resolve('buffer'),
       };
     }
 
@@ -24,6 +34,10 @@ const nextConfig = {
     });
 
     return config;
+  },
+  // Add environment variables if needed
+  env: {
+    // Remove NODE_ENV as it's not allowed
   },
 }
 
