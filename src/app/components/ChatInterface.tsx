@@ -1,14 +1,17 @@
 'use client';
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
-import ReactWebcam from 'react-webcam';
-import { useDropzone } from 'react-dropzone';
-import { useReactMediaRecorder } from 'react-media-recorder';
-import { geminiService, GeminiMessage } from '../services/gemini';
-import { AiOutlineSend, AiOutlineAudio } from 'react-icons/ai';
-import { MdOutlineVideoCall, MdAttachFile, MdHealthAndSafety } from 'react-icons/md';
+import React, { useState, useRef, useEffect } from 'react';
+import { AiOutlineSend } from 'react-icons/ai';
+import { MdOutlineVideoCall } from 'react-icons/md';
 import { RxAvatar } from 'react-icons/rx';
 import { FaRobot } from 'react-icons/fa';
+import { geminiService, GeminiMessage } from '../services/gemini';
+import dynamic from 'next/dynamic';
+
+// Dynamically import browser-only components
+const WebcamComponent = dynamic(() => import('./WebcamComponent'), { ssr: false });
+const DropzoneComponent = dynamic(() => import('./DropzoneComponent'), { ssr: false });
+const AudioRecorderComponent = dynamic(() => import('./AudioRecorderComponent'), { ssr: false });
 
 // Define interface for message structure
 interface Message {
@@ -16,6 +19,23 @@ interface Message {
   content: string;
   mediaType?: 'text' | 'audio' | 'video' | 'file';
   isPartial?: boolean;
+}
+
+// Create interfaces for component communication
+export interface DropzoneProps {
+  isDisabled: boolean;
+  onFilesSelected: (files: File[]) => void;
+}
+
+export interface AudioRecorderProps {
+  isDisabled: boolean;
+  isRecording: boolean;
+  onRecordingToggle: () => void;
+  onAudioReady: (audioUrl: string) => void;
+}
+
+export interface WebcamProps {
+  webcamRef: React.RefObject<any>;
 }
 
 const ChatInterface: React.FC = () => {
@@ -26,33 +46,19 @@ const ChatInterface: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isConnected, setIsConnected] = useState(false);
   const [isStreamingResponse, setIsStreamingResponse] = useState(false);
+  const [isBrowser, setIsBrowser] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const webcamRef = useRef<ReactWebcam>(null);
+  const webcamRef = useRef<any>(null);
   const videoInterval = useRef<NodeJS.Timeout>();
 
-  const { status: audioStatus, startRecording: startAudioRecording, stopRecording: stopAudioRecording, mediaBlobUrl, clearBlobUrl } = useReactMediaRecorder({
-    audio: true,
-    video: false,
-    blobPropertyBag: { type: 'audio/wav' },
-    onStop: (blobUrl: string, blob: Blob) => {
-      if (blob) {
-        handleAudioUpload(blobUrl);
-      }
-    }
-  });
-
-  const { getRootProps, getInputProps } = useDropzone({
-    accept: {
-      'application/pdf': ['.pdf'],
-      'application/msword': ['.doc'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-    },
-    onDrop: (acceptedFiles) => {
-      handleFileUpload(acceptedFiles);
-    },
-  });
+  // Check if we're in browser environment
+  useEffect(() => {
+    setIsBrowser(true);
+  }, []);
 
   useEffect(() => {
+    if (!isBrowser) return;
+    
     // Initialize Gemini session when component mounts
     initGeminiSession();
 
@@ -67,7 +73,7 @@ const ChatInterface: React.FC = () => {
         geminiService.endSession().catch(console.error);
       }
     };
-  }, []);
+  }, [isBrowser]);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -211,12 +217,7 @@ const ChatInterface: React.FC = () => {
   };
 
   const toggleAudioRecording = () => {
-    if (isRecording) {
-      stopAudioRecording();
-    } else {
-      startAudioRecording();
-    }
-    setIsRecording(!isRecording);
+    setIsRecording(prev => !prev);
   };
 
   const handleSendMessage = async () => {
@@ -275,9 +276,6 @@ const ChatInterface: React.FC = () => {
         data: Buffer.from(audioBuffer).toString('base64'),
         mimeType: 'audio/wav'
       });
-      
-      // Response is handled by onMessage callback
-      clearBlobUrl();
     } catch (error) {
       console.error('Error processing audio:', error);
       setMessages(prev => [
@@ -290,6 +288,7 @@ const ChatInterface: React.FC = () => {
       ]);
     } finally {
       setIsProcessing(false);
+      setIsRecording(false);
     }
   };
 
@@ -332,8 +331,6 @@ const ChatInterface: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen max-w-6xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
-      {/* Header has been moved to the page component */}
-      
       {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-6 relative">
         {messages.map((message, index) => (
@@ -426,17 +423,12 @@ const ChatInterface: React.FC = () => {
             {isVideoEnabled ? 'Video On' : 'Video Off'}
           </button>
           
-          <div
-            {...getRootProps()}
-            className={`px-4 py-2 rounded-full ${
-              isProcessing || !isConnected || isStreamingResponse ? 'bg-gray-400' : 'bg-teal-600 hover:bg-teal-700'
-            } text-white cursor-pointer flex items-center gap-2 transition-colors shadow-sm`}
-            title="Upload a file for AI to analyze"
-          >
-            <input {...getInputProps()} disabled={isProcessing || !isConnected || isStreamingResponse} />
-            <MdAttachFile className="text-lg" />
-            Upload File
-          </div>
+          {isBrowser && (
+            <DropzoneComponent 
+              isDisabled={isProcessing || !isConnected || isStreamingResponse}
+              onFilesSelected={handleFileUpload}
+            />
+          )}
         </div>
         <div className="flex gap-2">
           <input
@@ -454,16 +446,14 @@ const ChatInterface: React.FC = () => {
             disabled={isProcessing || !isConnected || isStreamingResponse}
           />
           
-          <button
-            onClick={toggleAudioRecording}
-            className={`p-3 rounded-full ${
-              isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-teal-600 hover:bg-teal-700'
-            } text-white flex items-center justify-center transition-colors shadow-sm`}
-            disabled={isProcessing || !isConnected || isStreamingResponse}
-            title={isRecording ? "Recording audio" : "Record audio message"}
-          >
-            <AiOutlineAudio className="text-xl" />
-          </button>
+          {isBrowser && (
+            <AudioRecorderComponent
+              isDisabled={isProcessing || !isConnected || isStreamingResponse}
+              isRecording={isRecording}
+              onRecordingToggle={toggleAudioRecording}
+              onAudioReady={handleAudioUpload}
+            />
+          )}
           
           <button
             onClick={handleSendMessage}
@@ -494,18 +484,8 @@ const ChatInterface: React.FC = () => {
       </div>
 
       {/* Video Window */}
-      {isVideoEnabled && (
-        <div className="fixed bottom-4 right-4 w-72">
-          <div className="bg-white p-2 rounded-2xl shadow-lg">
-            <ReactWebcam
-              ref={webcamRef}
-              audio={false}
-              screenshotFormat="image/jpeg"
-              className="rounded-xl w-full"
-            />
-            <div className="text-xs text-center text-gray-500 mt-1">Live Camera Feed</div>
-          </div>
-        </div>
+      {isVideoEnabled && isBrowser && (
+        <WebcamComponent webcamRef={webcamRef} />
       )}
     </div>
   );
