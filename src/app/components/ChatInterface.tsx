@@ -148,6 +148,17 @@ const ChatInterface: React.FC = () => {
                   return updatedMessages;
                 } else {
                   console.log('Adding new complete message');
+                  
+                  // Check if this message already exists (to prevent duplicates)
+                  const isDuplicate = prev.length > 0 && 
+                    prev[prev.length - 1].type === 'ai' && 
+                    prev[prev.length - 1].content === message.text;
+                  
+                  if (isDuplicate) {
+                    console.log('Skipping duplicate message');
+                    return prev;
+                  }
+                  
                   // Add as new message
                   return [
                     ...prev,

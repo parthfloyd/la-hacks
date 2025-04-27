@@ -372,7 +372,7 @@ class GeminiService {
       // Send initial greeting
       if (this.callbacks?.onMessage) {
         this.callbacks.onMessage({ 
-          text: "Hello! I'm your AI assistant. I can see and process audio and images. How can I help you today?" 
+          text: "Hello! I'm Dr. Gemma AI. \nI'm here to help you with your health concerns. Please tell me about your symptoms and I'll do my best to help you.\n Note If it's an emergency please call 911 or go to the nearest hospital." 
         });
       }
     } catch (error) {
