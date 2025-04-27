@@ -12,6 +12,7 @@ import dynamic from 'next/dynamic';
 // Dynamically import browser-only components
 const WebcamComponent = dynamic(() => import('./WebcamComponent'), { ssr: false });
 const AudioRecorderComponent = dynamic(() => import('./AudioRecorderComponent'), { ssr: false });
+const ReportGenerator = dynamic(() => import('./ReportGenerator'), { ssr: false });
 
 // Define interface for message structure
 interface Message {
@@ -42,6 +43,7 @@ const ChatInterface: React.FC = () => {
   const [isConnected, setIsConnected] = useState(false);
   const [isStreamingResponse, setIsStreamingResponse] = useState(false);
   const [isBrowser, setIsBrowser] = useState(false);
+  const [reportContent, setReportContent] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const webcamRef = useRef<any>(null);
   const videoInterval = useRef<NodeJS.Timeout>();
@@ -96,6 +98,16 @@ const ChatInterface: React.FC = () => {
     }
   }, [isVideoEnabled]);
 
+  // Check if a message contains a medical report
+  const checkForReport = (content: string): boolean => {
+    return content.includes('Final Report Summary') || content.includes('Healthcare Consultation Report');
+  };
+  
+  // Close the report modal
+  const handleCloseReport = () => {
+    setReportContent(null);
+  };
+
   const initGeminiSession = async () => {
     try {
       setIsProcessing(true);
@@ -144,6 +156,11 @@ const ChatInterface: React.FC = () => {
               // Final message (or complete update)
               console.log('Processing complete message');
               setIsStreamingResponse(false);
+              
+              // Check if this is a report
+              if (checkForReport(message.text)) {
+                setReportContent(message.text);
+              }
               
               setMessages(prev => {
                 const lastMessage = prev[prev.length - 1];
@@ -494,6 +511,14 @@ const ChatInterface: React.FC = () => {
         <div className="fixed bottom-4 right-4 w-64 h-36 z-50 rounded-lg overflow-hidden shadow-lg border-2 border-primary">
           <WebcamComponent webcamRef={webcamRef} />
         </div>
+      )}
+
+      {/* Report Generator Modal */}
+      {reportContent && (
+        <ReportGenerator 
+          reportContent={reportContent}
+          onClose={handleCloseReport}
+        />
       )}
     </div>
   );
