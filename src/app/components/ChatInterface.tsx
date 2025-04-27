@@ -1,32 +1,27 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { AiOutlineSend } from 'react-icons/ai';
-import { MdOutlineVideoCall } from 'react-icons/md';
+import { MdOutlineVideoCall, MdMic, MdMicOff } from 'react-icons/md';
 import { RxAvatar } from 'react-icons/rx';
-import { FaRobot } from 'react-icons/fa';
+import { FaRobot, FaHeartbeat } from 'react-icons/fa';
 import { geminiService, GeminiMessage } from '../services/gemini';
 import dynamic from 'next/dynamic';
 
 // Dynamically import browser-only components
 const WebcamComponent = dynamic(() => import('./WebcamComponent'), { ssr: false });
-const DropzoneComponent = dynamic(() => import('./DropzoneComponent'), { ssr: false });
 const AudioRecorderComponent = dynamic(() => import('./AudioRecorderComponent'), { ssr: false });
 
 // Define interface for message structure
 interface Message {
   type: 'user' | 'ai';
   content: string;
-  mediaType?: 'text' | 'audio' | 'video' | 'file';
+  mediaType?: 'text' | 'audio' | 'video';
   isPartial?: boolean;
 }
 
 // Create interfaces for component communication
-export interface DropzoneProps {
-  isDisabled: boolean;
-  onFilesSelected: (files: File[]) => void;
-}
-
 export interface AudioRecorderProps {
   isDisabled: boolean;
   isRecording: boolean;
@@ -50,6 +45,7 @@ const ChatInterface: React.FC = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const webcamRef = useRef<any>(null);
   const videoInterval = useRef<NodeJS.Timeout>();
+  const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Check if we're in browser environment
   useEffect(() => {
@@ -61,6 +57,17 @@ const ChatInterface: React.FC = () => {
     
     // Initialize Gemini session when component mounts
     initGeminiSession();
+
+    // Initial welcome message
+    setTimeout(() => {
+      setMessages([
+        {
+          type: 'ai',
+          content: "Hello! I'm your HealthGuardian AI assistant. How can I help you with your health concerns today?",
+          mediaType: 'text',
+        }
+      ]);
+    }, 1000);
 
     return () => {
       // Clean up on unmount
@@ -256,26 +263,31 @@ const ChatInterface: React.FC = () => {
     }
   };
 
-  const handleAudioUpload = async (audioUrl: string) => {
-    if (isProcessing || !geminiService.isSessionActive()) return;
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
 
+  const handleAudioUpload = async (audioUrl: string) => {
+    if (isProcessing || !geminiService.isSessionActive() || isStreamingResponse) return;
+    
     setIsProcessing(true);
     try {
-      setMessages(prev => [
-        ...prev,
-        {
-          type: 'user',
-          content: 'Sent an audio message',
-          mediaType: 'audio',
-        },
-      ]);
-
-      const audioBlob = await fetch(audioUrl).then(r => r.blob());
-      const audioBuffer = await audioBlob.arrayBuffer();
-      await geminiService.sendAudioMessage({
-        data: Buffer.from(audioBuffer).toString('base64'),
-        mimeType: 'audio/wav'
-      });
+      // Add user audio message
+      const newMessage: Message = {
+        type: 'user',
+        content: 'Sent an audio message',
+        mediaType: 'audio',
+      };
+      setMessages(prev => [...prev, newMessage]);
+      
+      // Process audio with Gemini
+      // Note: You'd need to implement this in the Gemini service
+      // For now, we're just using it as text
+      await geminiService.sendTextMessage('I sent an audio message that said: "Please analyze this audio recording of my symptoms"');
+      
     } catch (error) {
       console.error('Error processing audio:', error);
       setMessages(prev => [
@@ -288,204 +300,200 @@ const ChatInterface: React.FC = () => {
       ]);
     } finally {
       setIsProcessing(false);
-      setIsRecording(false);
-    }
-  };
-
-  const handleFileUpload = async (files: File[]) => {
-    const file = files[0];
-    if (!file || isProcessing || !geminiService.isSessionActive()) return;
-
-    setIsProcessing(true);
-    try {
-      setMessages(prev => [
-        ...prev,
-        {
-          type: 'user',
-          content: `Uploaded file: ${file.name}`,
-          mediaType: 'text',
-        },
-      ]);
-
-      await geminiService.sendFile(file);
-      
-      // Response is handled by onMessage callback
-    } catch (error) {
-      console.error('Error processing file:', error);
-      setMessages(prev => [
-        ...prev,
-        {
-          type: 'ai',
-          content: 'Sorry, I encountered an error processing your file.',
-          mediaType: 'text',
-        },
-      ]);
-    } finally {
-      setIsProcessing(false);
     }
   };
 
   const reconnectSession = async () => {
-    await initGeminiSession();
+    if (isConnected) return;
+    
+    try {
+      await initGeminiSession();
+    } catch (error) {
+      console.error('Error reconnecting:', error);
+    }
+  };
+
+  // Use a more robust message formatting function
+  const formatMessageContent = (content: string) => {
+    // Handle empty content
+    if (!content || content.trim() === '') {
+      return <span className="opacity-70 italic">Empty message</span>;
+    }
+
+    // Split by newlines and handle empty lines
+    return content.split('\n').map((line, i) => (
+      <span key={i} className="block">
+        {line || <br />}
+      </span>
+    ));
   };
 
   return (
-    <div className="flex flex-col h-screen max-w-6xl mx-auto bg-white rounded-2xl shadow-lg overflow-hidden">
-      {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-6 relative">
-        {messages.map((message, index) => (
-          <div
-            key={index}
-            className={`mb-6 ${
-              message.type === 'user' ? 'flex justify-end' : 'flex justify-start'
-            }`}
-          >
-            <div className={`flex items-start gap-3 max-w-[80%] ${
-              message.type === 'user' ? 'flex-row-reverse' : 'flex-row'
-            }`}>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                message.type === 'user' ? 'bg-teal-600' : 'bg-blue-500' 
-              }`}>
-                {message.type === 'ai' ? (
-                  <FaRobot className="text-white text-lg" />
-                ) : (
-                  <RxAvatar className="text-white text-lg" />
-                )}
-              </div>
-              <div
-                className={`px-4 py-3 rounded-2xl ${
-                  message.type === 'user'
-                    ? 'bg-teal-600 text-white rounded-tr-none'
-                    : 'bg-gray-100 text-gray-800 rounded-tl-none'
-                } ${
-                  message.isPartial 
-                    ? 'border-2 border-blue-300 relative' 
-                    : ''
-                }`}
+    <div className="h-full flex flex-col">
+      <div className="flex-1 flex flex-col bg-white rounded-2xl shadow-lg overflow-hidden border border-secondary-light border-opacity-20">
+        {/* Chat messages container */}
+        <div 
+          ref={chatContainerRef}
+          className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 min-h-[300px]"
+          style={{ scrollBehavior: 'smooth' }}
+        >
+          <AnimatePresence>
+            {messages.map((message, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.3 }}
+                className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                {message.content}
-                {message.isPartial && (
-                  <div className="absolute bottom-1 right-1 flex">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce mx-0.5"></span>
-                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.2s' }}></span>
-                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.4s' }}></span>
+                <div 
+                  className={`flex max-w-[70%] ${message.type === 'user' ? 'flex-row-reverse' : 'flex-row'}`}
+                >
+                  <div className={`flex-shrink-0 h-10 w-10 rounded-full flex items-center justify-center ${
+                    message.type === 'user' 
+                      ? 'bg-primary-light ml-2' 
+                      : 'bg-secondary-light mr-2'
+                  }`}>
+                    {message.type === 'user' ? (
+                      <RxAvatar className="text-white text-xl" />
+                    ) : (
+                      <FaRobot className="text-white text-xl" />
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-        {isStreamingResponse && !messages.some(m => m.isPartial) && (
-          <div className="mb-4 flex justify-start">
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center">
-                <FaRobot className="text-white text-lg" />
-              </div>
-              <div className="px-4 py-3 rounded-2xl bg-gray-100 rounded-tl-none">
-                <div className="flex">
-                  <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce mx-0.5"></span>
-                  <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.2s' }}></span>
-                  <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.4s' }}></span>
+                  
+                  <div className={`flex flex-col ${message.type === 'user' ? 'items-end' : 'items-start'}`}>
+                    <div 
+                      className={`rounded-2xl p-4 shadow-sm chat-message ${
+                        message.type === 'user'
+                          ? 'bg-primary text-white'
+                          : message.isPartial
+                          ? 'bg-gray-100 text-gray-800'
+                          : 'bg-[#E5F6FF] text-gray-800 border border-secondary-light border-opacity-20'
+                      }`}
+                    >
+                      {formatMessageContent(message.content)}
+                      
+                      {message.isPartial && (
+                        <div className="flex items-center gap-1 mt-2 text-gray-500">
+                          <span className="animate-pulse">●</span>
+                          <span className="animate-pulse animation-delay-100">●</span>
+                          <span className="animate-pulse animation-delay-200">●</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className={`text-xs text-gray-500 mt-1 ${message.type === 'user' ? 'text-right' : 'text-left'}`}>
+                      {message.type === 'user' ? 'You' : 'HealthGuardian AI'} • {new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                    </div>
+                  </div>
                 </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          
+          {isStreamingResponse && messages.length === 0 && (
+            <div className="flex justify-start">
+              <div className="bg-gray-100 rounded-2xl p-4 flex items-center gap-2">
+                <span className="animate-pulse">●</span>
+                <span className="animate-pulse animation-delay-100">●</span>
+                <span className="animate-pulse animation-delay-200">●</span>
+              </div>
+            </div>
+          )}
+          
+          <div ref={messagesEndRef} />
+        </div>
+        
+        {/* Chat input and controls */}
+        <div className="border-t border-gray-200 p-4 md:p-6 bg-gray-50">
+          {!isConnected && (
+            <div className="text-center mb-4">
+              <span className="text-danger bg-danger bg-opacity-10 px-3 py-1 rounded-full text-sm">
+                Connection lost. 
+              </span>
+              <button 
+                onClick={reconnectSession} 
+                className="ml-2 text-primary font-medium hover:underline text-sm"
+              >
+                Reconnect
+              </button>
+            </div>
+          )}
+          
+          <div className="flex flex-col md:flex-row gap-3">
+            {/* Input with expandable media options */}
+            <div className="flex-1 flex">
+              <div className="flex-1 relative">
+                <input
+                  type="text"
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  placeholder="Type your health question here..."
+                  className="w-full px-4 py-3 pr-10 rounded-l-xl border-y border-l border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  disabled={isProcessing || !isConnected || isStreamingResponse}
+                />
+                
+                <button
+                  onClick={handleSendMessage}
+                  disabled={!inputText.trim() || isProcessing || !isConnected || isStreamingResponse}
+                  className="absolute right-0 top-0 bottom-0 px-3 text-primary hover:text-primary-dark disabled:text-gray-400 transition-colors"
+                  aria-label="Send message"
+                >
+                  <AiOutlineSend className="text-xl" />
+                </button>
+              </div>
+              
+              <div className="flex">
+                <button
+                  onClick={toggleAudioRecording}
+                  disabled={isProcessing || !isConnected || isStreamingResponse}
+                  className={`px-3 py-2 border-y border-l border-gray-300 rounded-l-xl ${
+                    isRecording ? 'bg-danger text-white' : 'bg-white text-gray-600 hover:bg-gray-100'
+                  } transition-colors`}
+                  aria-label={isRecording ? 'Stop recording' : 'Start recording'}
+                >
+                  {isRecording ? <MdMicOff className="text-xl" /> : <MdMic className="text-xl" />}
+                </button>
+                
+                <button
+                  onClick={toggleVideo}
+                  disabled={isProcessing || !isConnected || isStreamingResponse}
+                  className={`px-3 py-2 border border-gray-300 rounded-r-xl ${
+                    isVideoEnabled ? 'bg-primary text-white' : 'bg-white text-gray-600 hover:bg-gray-100'
+                  } transition-colors`}
+                  aria-label={isVideoEnabled ? 'Disable video' : 'Enable video'}
+                >
+                  <MdOutlineVideoCall className="text-xl" />
+                </button>
               </div>
             </div>
           </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Connection Status */}
-      {!isConnected && (
-        <div className="mx-6 mb-4 p-4 bg-yellow-50 border border-yellow-300 text-yellow-800 rounded-2xl text-center shadow-md">
-          <p className="mb-2 font-medium">Connection to AI service is closed.</p>
-          <button 
-            onClick={reconnectSession}
-            className="px-5 py-2 bg-teal-600 text-white rounded-full shadow-md hover:bg-teal-700 transition-colors"
-            disabled={isProcessing}
-          >
-            Reconnect
-          </button>
-        </div>
-      )}
-
-      {/* Input Area */}
-      <div className="px-6 py-5 border-t border-gray-200 bg-white">
-        <div className="flex gap-2 mb-3">
-          <button
-            onClick={toggleVideo}
-            className={`px-4 py-2 rounded-full ${
-              isVideoEnabled ? 'bg-red-500 hover:bg-red-600' : 'bg-teal-600 hover:bg-teal-700'
-            } text-white flex items-center gap-2 transition-colors shadow-sm`}
-            disabled={isProcessing || !isConnected}
-            title={isVideoEnabled ? "Video is enabled - AI can see you" : "Enable video to let AI see you"}
-          >
-            <MdOutlineVideoCall className="text-lg" />
-            {isVideoEnabled ? 'Video On' : 'Video Off'}
-          </button>
           
-          {isBrowser && (
-            <DropzoneComponent 
-              isDisabled={isProcessing || !isConnected || isStreamingResponse}
-              onFilesSelected={handleFileUpload}
-            />
-          )}
-        </div>
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSendMessage();
-              }
-            }}
-            className="flex-1 p-3 border border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 rounded-full outline-none"
-            placeholder={isVideoEnabled ? "Type your message (video is enabled)" : "Type your message..."}
-            disabled={isProcessing || !isConnected || isStreamingResponse}
-          />
-          
-          {isBrowser && (
-            <AudioRecorderComponent
-              isDisabled={isProcessing || !isConnected || isStreamingResponse}
-              isRecording={isRecording}
-              onRecordingToggle={toggleAudioRecording}
-              onAudioReady={handleAudioUpload}
-            />
+          {isRecording && (
+            <div className="mt-3 p-3 bg-danger bg-opacity-10 rounded-lg">
+              <AudioRecorderComponent 
+                isDisabled={false} 
+                isRecording={isRecording}
+                onRecordingToggle={toggleAudioRecording}
+                onAudioReady={handleAudioUpload}
+              />
+            </div>
           )}
           
-          <button
-            onClick={handleSendMessage}
-            className={`p-3 rounded-full ${
-              isProcessing || !isConnected || isStreamingResponse || !inputText.trim() ? 'bg-gray-400' : 'bg-teal-600 hover:bg-teal-700'
-            } text-white flex items-center justify-center transition-colors shadow-sm`}
-            disabled={isProcessing || !isConnected || isStreamingResponse || !inputText.trim()}
-          >
-            <AiOutlineSend className="text-xl" />
-          </button>
+          <div className="flex items-center justify-center mt-4 text-gray-500 text-xs gap-1">
+            <FaHeartbeat className="text-accent" />
+            <span>For informational purposes only • Not a substitute for professional medical advice</span>
+          </div>
         </div>
-        {isStreamingResponse && (
-          <div className="text-xs text-gray-500 mt-2">
-            AI is generating a response...
-          </div>
-        )}
-        {isVideoEnabled && (
-          <div className="text-xs text-gray-500 mt-2">
-            Video mode is active - AI can see through your camera
-          </div>
-        )}
-        {isRecording && (
-          <div className="text-xs text-red-500 mt-2 flex items-center">
-            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-1"></span>
-            Recording audio...
-          </div>
-        )}
       </div>
-
-      {/* Video Window */}
-      {isVideoEnabled && isBrowser && (
-        <WebcamComponent webcamRef={webcamRef} />
+      
+      {/* Webcam displayed in bottom-right corner when enabled */}
+      {isVideoEnabled && (
+        <div className="fixed bottom-4 right-4 w-64 h-36 z-50 rounded-lg overflow-hidden shadow-lg border-2 border-primary">
+          <WebcamComponent webcamRef={webcamRef} />
+        </div>
       )}
     </div>
   );

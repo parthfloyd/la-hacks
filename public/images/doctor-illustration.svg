@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Head -->
+  <circle cx="250" cy="150" r="80" fill="#F5D0C5" />
+  <!-- Lab Coat -->
+  <path d="M170 230 v150 h160 v-150 l-80 -30 z" fill="#FFFFFF" />
+  <path d="M170 230 v150 h-20 v-140 z" fill="#FFFFFF" />
+  <path d="M330 230 v150 h20 v-140 z" fill="#FFFFFF" />
+  <!-- Neck -->
+  <rect x="240" y="210" width="20" height="30" fill="#F5D0C5" />
+  <!-- Face -->
+  <circle cx="220" cy="140" r="10" fill="#0B5567" /> <!-- Left Eye -->
+  <circle cx="280" cy="140" r="10" fill="#0B5567" /> <!-- Right Eye -->
+  <path d="M230 170 c10 10, 30 10, 40 0" fill="none" stroke="#0B5567" stroke-width="3" /> <!-- Smile -->
+  <!-- Stethoscope -->
+  <path d="M210 290 c0 0, -30 30, -30 60 c0 15, 10 25, 25 25 c15 0, 25 -10, 25 -25 c0 -30, -20 -60, -20 -60" fill="none" stroke="#0B5567" stroke-width="6" />
+  <circle cx="205" cy="375" r="12" fill="#36B1BF" stroke="#0B5567" stroke-width="3" />
+  <path d="M210 290 c0 0, 100 -10, 100 -20" fill="none" stroke="#0B5567" stroke-width="6" />
+  <!-- Hair -->
+  <path d="M210 90 c-20 -20, -60 -20, -40 -60" fill="#0B5567" />
+  <path d="M290 90 c20 -20, 60 -20, 40 -60" fill="#0B5567" />
+  <path d="M170 130 c0 0, 0 -80, 80 -80 c80 0, 80 80, 80 80" fill="#0B5567" />
+</svg> 

@@ -1,56 +1,105 @@
 'use client';
 
-import React, { useEffect } from 'react';
-import { useReactMediaRecorder } from 'react-media-recorder';
-import { AiOutlineAudio } from 'react-icons/ai';
+import React, { useState, useEffect } from 'react';
 import { AudioRecorderProps } from './ChatInterface';
 
-const AudioRecorderComponent: React.FC<AudioRecorderProps> = ({ 
-  isDisabled, 
-  isRecording, 
+const AudioRecorderComponent: React.FC<AudioRecorderProps> = ({
+  isDisabled,
+  isRecording,
   onRecordingToggle,
   onAudioReady
 }) => {
-  const { status, startRecording, stopRecording, mediaBlobUrl, clearBlobUrl } = useReactMediaRecorder({
-    audio: true,
-    video: false,
-    blobPropertyBag: { type: 'audio/wav' },
-    onStop: (blobUrl: string, blob: Blob) => {
-      if (blob) {
-        onAudioReady(blobUrl);
-      }
-    }
-  });
-
-  // Start or stop recording when isRecording changes
+  const [audioURL, setAudioURL] = useState<string | null>(null);
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null);
+  const [recordingTime, setRecordingTime] = useState(0);
+  const chunks = React.useRef<Blob[]>([]);
+  
+  // Set up timer for recording duration
   useEffect(() => {
+    let interval: NodeJS.Timeout;
+    
     if (isRecording) {
+      setRecordingTime(0);
+      interval = setInterval(() => {
+        setRecordingTime(prev => prev + 1);
+      }, 1000);
+    } else {
+      setRecordingTime(0);
+    }
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isRecording]);
+  
+  // Initialize media recorder when recording starts
+  useEffect(() => {
+    if (isRecording && !mediaRecorder) {
       startRecording();
-    } else if (status === 'recording') {
+    } else if (!isRecording && mediaRecorder) {
       stopRecording();
     }
-  }, [isRecording, status, startRecording, stopRecording]);
-
-  // Clean up blob URL when component unmounts
-  useEffect(() => {
-    return () => {
-      if (mediaBlobUrl) {
-        clearBlobUrl();
-      }
-    };
-  }, [mediaBlobUrl, clearBlobUrl]);
-
+  }, [isRecording, mediaRecorder]);
+  
+  const startRecording = async () => {
+    chunks.current = [];
+    
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          chunks.current.push(e.data);
+        }
+      };
+      
+      recorder.onstop = () => {
+        const blob = new Blob(chunks.current, { type: 'audio/wav' });
+        const url = URL.createObjectURL(blob);
+        setAudioURL(url);
+        onAudioReady(url);
+        
+        // Stop all audio tracks to release microphone
+        stream.getAudioTracks().forEach(track => track.stop());
+        setMediaRecorder(null);
+      };
+      
+      recorder.start();
+      setMediaRecorder(recorder);
+    } catch (err) {
+      console.error('Error accessing microphone:', err);
+      onRecordingToggle(); // Turn off recording state if there's an error
+    }
+  };
+  
+  const stopRecording = () => {
+    if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+      mediaRecorder.stop();
+    }
+  };
+  
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+  
   return (
-    <button
-      onClick={onRecordingToggle}
-      className={`p-3 rounded-full ${
-        isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-teal-600 hover:bg-teal-700'
-      } text-white flex items-center justify-center transition-colors shadow-sm`}
-      disabled={isDisabled}
-      title={isRecording ? "Recording audio" : "Record audio message"}
-    >
-      <AiOutlineAudio className="text-xl" />
-    </button>
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-2">
+        <div className="h-3 w-3 rounded-full bg-danger animate-pulse"></div>
+        <span className="text-danger font-medium">Recording audio: {formatTime(recordingTime)}</span>
+      </div>
+      
+      <button
+        onClick={onRecordingToggle}
+        disabled={isDisabled}
+        className="px-3 py-1 rounded-full bg-danger text-white text-sm hover:bg-opacity-90 transition-colors"
+      >
+        Stop Recording
+      </button>
+    </div>
   );
 };
 

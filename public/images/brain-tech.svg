@@ -1,0 +1,27 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Brain outline -->
+  <path d="M65,80 C40,80 40,120 65,120 C60,140 100,160 120,130 C140,150 170,130 170,110 C185,100 175,70 160,75 C160,50 130,50 120,70 C110,50 80,50 80,75 C65,70 55,80 65,80 Z" 
+        fill="#F3F4F6" 
+        stroke="#008DC9" 
+        stroke-width="2"/>
+  
+  <!-- Tech circuit elements -->
+  <circle cx="70" cy="90" r="5" fill="#40B5ED"/>
+  <circle cx="130" cy="90" r="5" fill="#40B5ED"/>
+  <circle cx="90" cy="110" r="5" fill="#40B5ED"/>
+  <circle cx="110" cy="110" r="5" fill="#40B5ED"/>
+  <circle cx="100" cy="130" r="5" fill="#40B5ED"/>
+  <circle cx="150" cy="110" r="5" fill="#40B5ED"/>
+  
+  <line x1="70" y1="90" x2="90" y2="110" stroke="#008DC9" stroke-width="2"/>
+  <line x1="90" y1="110" x2="100" y2="130" stroke="#008DC9" stroke-width="2"/>
+  <line x1="110" y1="110" x2="100" y2="130" stroke="#008DC9" stroke-width="2"/>
+  <line x1="130" y1="90" x2="110" y2="110" stroke="#008DC9" stroke-width="2"/>
+  <line x1="130" y1="90" x2="150" y2="110" stroke="#008DC9" stroke-width="2"/>
+  
+  <!-- Pulse effect -->
+  <circle cx="100" cy="100" r="40" fill="none" stroke="#E08336" stroke-width="1" opacity="0.5">
+    <animate attributeName="r" from="40" to="50" dur="1.5s" repeatCount="indefinite"/>
+    <animate attributeName="opacity" from="0.5" to="0" dur="1.5s" repeatCount="indefinite"/>
+  </circle>
+</svg> 

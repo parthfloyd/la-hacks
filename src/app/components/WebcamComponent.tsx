@@ -1,21 +1,26 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Webcam from 'react-webcam';
 import { WebcamProps } from './ChatInterface';
 
 const WebcamComponent: React.FC<WebcamProps> = ({ webcamRef }) => {
+  const videoConstraints = {
+    width: 640,
+    height: 360,
+    facingMode: "user"
+  };
+
   return (
-    <div className="fixed bottom-4 right-4 w-72">
-      <div className="bg-white p-2 rounded-2xl shadow-lg">
-        <Webcam
-          audio={false}
-          screenshotFormat="image/jpeg"
-          className="rounded-xl w-full"
-          ref={webcamRef}
-        />
-        <div className="text-xs text-center text-gray-500 mt-1">Live Camera Feed</div>
-      </div>
+    <div className="webcam-container">
+      <Webcam
+        audio={false}
+        ref={webcamRef}
+        screenshotFormat="image/jpeg"
+        videoConstraints={videoConstraints}
+        className="webcam-video rounded-lg"
+        mirrored={true}
+      />
     </div>
   );
 };
