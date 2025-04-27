@@ -460,31 +460,67 @@ class GeminiService {
     }
     
     try {
-      console.log('Sending audio message to Gemini');
+      console.log('Sending audio message to Gemini, blob size:', audioBlob.size);
       
       // Reset the response queue before sending a new message
       this.responseQueue = [];
       
-      // Convert blob to base64
-      const arrayBuffer = await audioBlob.arrayBuffer();
-      const base64Data = Buffer.from(arrayBuffer).toString('base64');
-      
-      this.liveSession.sendClientContent({
-        turns: [
-          'Please analyze this audio recording of my symptoms:',
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: audioBlob.type || 'audio/wav'
+      // Convert blob to base64 with proper error handling
+      try {
+        const arrayBuffer = await audioBlob.arrayBuffer();
+        console.log('Audio converted to arrayBuffer, size:', arrayBuffer.byteLength);
+        
+        if (arrayBuffer.byteLength === 0) {
+          throw new Error('Empty audio data received');
+        }
+        
+        const base64Data = Buffer.from(arrayBuffer).toString('base64');
+        console.log('Audio converted to base64, length:', base64Data.length);
+        
+        // Send with a more specific prompt
+        await this.liveSession.sendClientContent({
+          turns: [
+            'The following is an audio recording where I describe my health symptoms:',
+            {
+              inlineData: {
+                data: base64Data,
+                mimeType: audioBlob.type || 'audio/wav'
+              }
             }
-          }
-        ],
-        endOfTurn: true
-      });
+          ],
+          endOfTurn: true
+        });
+        
+        console.log('Audio data sent successfully to Gemini');
+      } catch (conversionError) {
+        console.error('Error converting audio data:', conversionError);
+        
+        // If audio conversion fails, send a fallback text message
+        await this.liveSession.sendClientContent({
+          turns: "I tried to send an audio recording but there was a technical issue. Can we continue our conversation?",
+          endOfTurn: true
+        });
+      }
     } catch (error) {
       console.error('Error sending audio to Gemini:', error);
-      if (this.callbacks?.onError) {
-        this.callbacks.onError(error instanceof Error ? error : new Error('Unknown error'));
+      
+      // Only call error callback if session is still active
+      if (this.sessionActive && this.callbacks?.onError) {
+        this.callbacks.onError(error instanceof Error ? error : new Error('Unknown error sending audio'));
+      }
+      
+      // Attempt to recover the session if possible
+      if (this.liveSession && this.sessionActive) {
+        try {
+          // Send a recovery message
+          await this.liveSession.sendClientContent({
+            turns: "There was a problem with my audio recording. Let's continue our conversation.",
+            endOfTurn: true
+          });
+        } catch (recoveryError) {
+          console.error('Failed to recover session after audio error:', recoveryError);
+          // At this point the session may be lost
+        }
       }
     }
   }

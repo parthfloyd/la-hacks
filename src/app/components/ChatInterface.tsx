@@ -377,9 +377,14 @@ const ChatInterface: React.FC = () => {
   };
 
   const handleAudioUpload = async (audioUrl: string, audioBlob: Blob) => {
-    if (isProcessing || !geminiService.isSessionActive() || isStreamingResponse) return;
+    if (isProcessing || !geminiService.isSessionActive() || isStreamingResponse) {
+      console.log('Cannot process audio: processing state or streaming state active');
+      return;
+    }
     
+    console.log('Processing audio upload, blob size:', audioBlob.size);
     setIsProcessing(true);
+    
     try {
       // Add user audio message
       const newMessage: Message = {
@@ -389,27 +394,62 @@ const ChatInterface: React.FC = () => {
       };
       setMessages(prev => [...prev, newMessage]);
       
+      // Ensure we have a valid blob with data
+      if (!audioBlob || audioBlob.size === 0) {
+        throw new Error('Empty audio recording received');
+      }
+      
       // Send audio to Gemini
-      // If geminiService doesn't have a sendAudioMessage method yet, you might need to add it
       if (geminiService.sendAudioMessage) {
+        console.log('Sending audio to Gemini service...');
         await geminiService.sendAudioMessage(audioBlob);
+        console.log('Audio sent successfully');
       } else {
         // Fallback to text message until audio processing is implemented
+        console.log('Audio processing not available, using text fallback');
         await geminiService.sendTextMessage("I've recorded an audio message about my symptoms. Please analyze it.");
       }
       
     } catch (error) {
       console.error('Error processing audio:', error);
-      setMessages(prev => [
-        ...prev,
-        {
-          type: 'ai',
-          content: 'Sorry, I encountered an error processing your audio.',
-          mediaType: 'text',
-        },
-      ]);
+      
+      // Check if session is still active
+      if (!geminiService.isSessionActive()) {
+        console.log('Session closed during audio processing, attempting to reconnect');
+        try {
+          await initGeminiSession();
+          setMessages(prev => [
+            ...prev,
+            {
+              type: 'ai',
+              content: 'Connection was reset. Please try recording your message again.',
+              mediaType: 'text',
+            },
+          ]);
+        } catch (reconnectError) {
+          console.error('Failed to reconnect:', reconnectError);
+          setMessages(prev => [
+            ...prev,
+            {
+              type: 'ai',
+              content: 'Connection lost. Please refresh the page and try again.',
+              mediaType: 'text',
+            },
+          ]);
+        }
+      } else {
+        setMessages(prev => [
+          ...prev,
+          {
+            type: 'ai',
+            content: 'Sorry, I encountered an error processing your audio. Please try again or type your message instead.',
+            mediaType: 'text',
+          },
+        ]);
+      }
     } finally {
       setIsProcessing(false);
+      setIsRecording(false); // Ensure recording state is reset
     }
   };
 
