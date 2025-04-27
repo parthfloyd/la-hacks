@@ -101,7 +101,6 @@ class GeminiService {
   
   // For media streams
   private videoInterval: NodeJS.Timeout | null = null;
-  private audioEnabled: boolean = false;
   private videoEnabled: boolean = false;
   private mediaInputQueue = new MessageQueue<any>();
   
@@ -359,6 +358,14 @@ class GeminiService {
           }
         },
         config: { responseModalities: [Modality.TEXT],
+          tools: [
+            {
+              googleSearch: {
+                name: 'Google Search',
+                description: 'Use Google Search to find general, publicly available information about symptoms, conditions, or assessment questions from reputable sources (e.g., Mayo Clinic, NHS, WHO snippets, general medical information sites).'
+              }
+            }
+          ],
           systemInstruction: `You are an AI Healthcare Information Assistant designed to simulate a preliminary health consultation and talk with a patient in a conversational manner.
 
 **CRITICAL SAFETY INSTRUCTIONS & LIMITATIONS:**
@@ -394,7 +401,8 @@ class GeminiService {
     *   **S (Subjective):** Summarize the patient's chief complaint, history of present illness, relevant past medical history, family history, and social history *as reported by the patient*. Use phrases like "Patient reports...", "Patient states...", "Patient denies...".
     *   **O (Objective):** List any *patient-reported* objective data. This includes any measurements the patient mentioned (e.g., "Patient states temperature was 101°F"), patient's self-rating of pain/severity, or observable *conversational* cues (e.g., "Patient expresses frustration with symptom duration"). Since you cannot perform exams, this section is limited to *reported* or *conversational* observations.
     *   **A (Assessment):** Based *only* on the Subjective and Objective information provided by the patient, provide a *simulated* assessment. .** Phrase this as "Possible considerations based on patient report include...", "The reported symptoms are consistent with general descriptions of...", or "Differential possibilities based on patient report might include...". Emphasize uncertainty and the need for professional evaluation. You can reference general information found via Google Search here, but *never* as a definitive statement about the patient.
-    *   **P (Plan):** Outline the *simulated* plan. Examples: "Advise patient to monitor symptoms and note any changes," "Suggest seeking immediate medical attention if danger signs appear," "Recommend follow-up with a primary care physician if required."
+    *   **P (Plan):** Outline the *simulated* plan based on SOAP in medical. Use your knowledge of medical science from trusted sources.
+    * In the report include Reference which has link to all the suspected assessment and plan. 
 
 **Throughout the conversation, prioritize safety and stay to the point and act like you're talking like a real human without using any reference to AI.** If the conversation goes off-topic or into areas requiring actual medical expertise, gently steer it back or reiterate the need for professional medical advice.`
          }
@@ -448,7 +456,7 @@ class GeminiService {
   /**
    * Send an audio message to Gemini
    */
-  async sendAudioMessage(audioBlob: any): Promise<void> {
+  async sendAudioMessage(audioBlob: Blob): Promise<void> {
     if (!this.sessionActive || !this.liveSession) {
       throw new Error('No active session');
     }
@@ -459,13 +467,17 @@ class GeminiService {
       // Reset the response queue before sending a new message
       this.responseQueue = [];
       
+      // Convert blob to base64
+      const arrayBuffer = await audioBlob.arrayBuffer();
+      const base64Data = Buffer.from(arrayBuffer).toString('base64');
+      
       this.liveSession.sendClientContent({
         turns: [
-          'Process this audio:',
+          'Please analyze this audio recording of my symptoms:',
           {
             inlineData: {
-              data: audioBlob.data,
-              mimeType: audioBlob.mimeType
+              data: base64Data,
+              mimeType: audioBlob.type || 'audio/wav'
             }
           }
         ],

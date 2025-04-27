@@ -4,8 +4,8 @@ import React, { useState, useRef } from 'react';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 import ReportTemplate from './ReportTemplate';
-import { MdOutlineEmail, MdOutlineDownload, MdOutlineClose, MdCheckCircle } from 'react-icons/md';
-import { motion, AnimatePresence } from 'framer-motion';
+import { MdOutlineDownload, MdOutlineClose, MdCheckCircle } from 'react-icons/md';
+import { motion } from 'framer-motion';
 
 interface ReportGeneratorProps {
   reportContent: string;
@@ -14,9 +14,6 @@ interface ReportGeneratorProps {
 
 const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reportContent, onClose }) => {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [showEmailForm, setShowEmailForm] = useState(false);
-  const [email, setEmail] = useState('');
-  const [isEmailSent, setIsEmailSent] = useState(false);
   const [isDownloaded, setIsDownloaded] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
   
@@ -44,27 +41,130 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reportContent, onClos
     setIsGenerating(true);
     
     try {
+      // Create a new PDF document
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      
+      // Directly capture the entire report as one canvas
       const canvas = await html2canvas(reportRef.current, {
-        scale: 2, // Higher scale for better quality
+        scale: 2,
         logging: false,
         useCORS: true,
+        allowTaint: true,
+        imageTimeout: 15000,
+        onclone: (clonedDoc) => {
+          // Fix image paths in the cloned document if needed
+          const images = clonedDoc.querySelectorAll('img');
+          images.forEach(img => {
+            if (img.src.startsWith('/')) {
+              // Convert relative paths to absolute for PDF generation
+              img.src = window.location.origin + img.getAttribute('src');
+            }
+          });
+        }
       });
       
-      const imgWidth = 210; // A4 width in mm
+      // Get dimensions
+      const imgWidth = 190; // A4 width with margins in mm
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pageHeight = 277; // A4 height (297) minus margins
       
-      const pdf = new jsPDF('p', 'mm', 'a4');
-      const imgData = canvas.toDataURL('image/png');
+      // If the report is longer than one page, split it into multiple pages
+      let heightLeft = imgHeight;
+      let position = 0;
+      let pageOffset = 10; // Starting position on first page
       
-      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      // Add first page
+      pdf.addImage(canvas, 'PNG', 10, pageOffset, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
       
-      // Return the PDF document for further use
+      // Add additional pages if needed
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(canvas, 'PNG', 10, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
       return pdf;
     } catch (error) {
       console.error('Error generating PDF:', error);
+      // Create a simple text-based PDF if image generation fails
+      try {
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const soap = extractSOAPFromContent(reportContent);
+        
+        // Add a title
+        pdf.setFontSize(16);
+        pdf.setTextColor(0, 0, 255);
+        pdf.text('HEALTHCARE REPORT', 105, 20, { align: 'center' });
+        
+        // Add patient info
+        pdf.setFontSize(12);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(`Patient: ${patientName}`, 20, 40);
+        pdf.text(`Date: ${date}`, 20, 50);
+        
+        // Add SOAP content
+        let yPos = 70;
+        const addSection = (title: string, content: string) => {
+          pdf.setFontSize(14);
+          pdf.setTextColor(0, 0, 150);
+          pdf.text(title, 20, yPos);
+          yPos += 10;
+          
+          pdf.setFontSize(12);
+          pdf.setTextColor(0, 0, 0);
+          const lines = pdf.splitTextToSize(content, 170);
+          
+          // Check if we need a new page
+          if (yPos + lines.length * 7 > 270) {
+            pdf.addPage();
+            yPos = 20;
+          }
+          
+          pdf.text(lines, 20, yPos);
+          yPos += lines.length * 7 + 10;
+        };
+        
+        addSection('S (Subjective)', soap.subjective);
+        addSection('O (Objective)', soap.objective);  
+        addSection('A (Assessment)', soap.assessment);
+        addSection('P (Plan)', soap.plan);
+        
+        // Add references if any
+        if (soap.references.length > 0) {
+          addSection('References', soap.references.join('\n'));
+        }
+        
+        return pdf;
+      } catch (fallbackError) {
+        console.error('Fallback PDF generation failed:', fallbackError);
+        return null;
+      }
     } finally {
       setIsGenerating(false);
     }
+  };
+  
+  // Helper function to extract SOAP sections from content
+  const extractSOAPFromContent = (content: string) => {
+    const subjectiveMatch = content.match(/\*\*S \(Subjective\)\*\*:?([\s\S]*?)(?=\*\*O \(Objective\)|$)/i);
+    const objectiveMatch = content.match(/\*\*O \(Objective\)\*\*:?([\s\S]*?)(?=\*\*A \(Assessment\)|$)/i);
+    const assessmentMatch = content.match(/\*\*A \(Assessment\)\*\*:?([\s\S]*?)(?=\*\*P \(Plan\)|$)/i);
+    const planMatch = content.match(/\*\*P \(Plan\)\*\*:?([\s\S]*?)(?=$)/i);
+    
+    // Extract references using regex
+    const urlPattern = /(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&//=]*)/g;
+    const allContent = content || '';
+    const references = allContent.match(urlPattern) || [];
+    
+    return {
+      subjective: subjectiveMatch ? subjectiveMatch[1].trim() : 'No subjective information available',
+      objective: objectiveMatch ? objectiveMatch[1].trim() : 'No objective information available',
+      assessment: assessmentMatch ? assessmentMatch[1].trim() : 'No assessment information available',
+      plan: planMatch ? planMatch[1].trim() : 'No plan information available',
+      references
+    };
   };
   
   const handleDownload = async () => {
@@ -77,44 +177,6 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reportContent, onClos
       setTimeout(() => {
         setIsDownloaded(false);
       }, 3000);
-    }
-  };
-  
-  const handleSendEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email.trim()) return;
-    
-    try {
-      const pdf = await generatePDF();
-      if (pdf) {
-        const pdfBase64 = pdf.output('datauristring');
-        
-        // Send email with PDF attachment
-        const response = await fetch('/api/send-email', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email,
-            subject: `HealthGuardian Report: ${title}`,
-            message: `Please find attached your medical report from HealthGuardian AI.`,
-            pdfBase64,
-            fileName: `HealthGuardian_Report_${Date.now()}.pdf`,
-          }),
-        });
-        
-        if (response.ok) {
-          setIsEmailSent(true);
-          setTimeout(() => {
-            setShowEmailForm(false);
-            setIsEmailSent(false);
-          }, 3000);
-        }
-      }
-    } catch (error) {
-      console.error('Error sending email:', error);
     }
   };
   
@@ -137,11 +199,11 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reportContent, onClos
           <div className="bg-[#F5FAFD] p-4 rounded-lg mb-6 border border-secondary-light border-opacity-30">
             <h3 className="text-primary font-bold mb-2">Your report is ready!</h3>
             <p className="text-gray-700">
-              You can download your report as a PDF or have it sent to your email for future reference.
+              You can download your report as a PDF for future reference.
             </p>
           </div>
           
-          <div className="flex justify-between mb-6">
+          <div className="flex justify-center mb-6">
             <button
               onClick={handleDownload}
               disabled={isGenerating}
@@ -150,18 +212,10 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reportContent, onClos
               {isDownloaded ? <MdCheckCircle /> : <MdOutlineDownload />}
               {isDownloaded ? 'Downloaded!' : 'Download PDF'}
             </button>
-            
-            <button
-              onClick={() => setShowEmailForm(true)}
-              className="px-4 py-2 flex items-center gap-2 bg-secondary text-white rounded-lg hover:bg-secondary-dark transition-colors"
-            >
-              <MdOutlineEmail />
-              Email Report
-            </button>
           </div>
           
           {/* Preview of the report */}
-          <div className="bg-gray-100 p-4 rounded-lg overflow-hidden" style={{ transform: 'scale(0.75)', transformOrigin: 'top center' }}>
+          <div className="bg-gray-100 p-4 rounded-lg overflow-auto max-h-[60vh]">
             <div ref={reportRef}>
               <ReportTemplate
                 title={title}
@@ -172,68 +226,6 @@ const ReportGenerator: React.FC<ReportGeneratorProps> = ({ reportContent, onClos
             </div>
           </div>
         </div>
-        
-        {/* Email form overlay */}
-        <AnimatePresence>
-          {showEmailForm && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
-            >
-              <motion.div
-                initial={{ scale: 0.9 }}
-                animate={{ scale: 1 }}
-                exit={{ scale: 0.9 }}
-                className="bg-white rounded-xl p-6 max-w-md w-full"
-              >
-                <h3 className="text-xl font-bold text-primary mb-4">Send to Email</h3>
-                
-                {isEmailSent ? (
-                  <div className="bg-green-50 text-green-700 p-4 rounded-lg flex items-center gap-3">
-                    <MdCheckCircle className="text-2xl" />
-                    <p>Report sent successfully to your email!</p>
-                  </div>
-                ) : (
-                  <form onSubmit={handleSendEmail}>
-                    <div className="mb-4">
-                      <label htmlFor="email" className="block text-gray-700 mb-2">
-                        Email Address
-                      </label>
-                      <input
-                        type="email"
-                        id="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="your.email@example.com"
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-                        required
-                      />
-                    </div>
-                    
-                    <div className="flex justify-end gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setShowEmailForm(false)}
-                        className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="submit"
-                        className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors flex items-center gap-2"
-                      >
-                        <MdOutlineEmail />
-                        Send Report
-                      </button>
-                    </div>
-                  </form>
-                )}
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </motion.div>
     </div>
   );

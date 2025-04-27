@@ -27,7 +27,7 @@ export interface AudioRecorderProps {
   isDisabled: boolean;
   isRecording: boolean;
   onRecordingToggle: () => void;
-  onAudioReady: (audioUrl: string) => void;
+  onAudioReady: (audioUrl: string, audioBlob: Blob) => void;
 }
 
 export interface WebcamProps {
@@ -287,7 +287,7 @@ const ChatInterface: React.FC = () => {
     }
   };
 
-  const handleAudioUpload = async (audioUrl: string) => {
+  const handleAudioUpload = async (audioUrl: string, audioBlob: Blob) => {
     if (isProcessing || !geminiService.isSessionActive() || isStreamingResponse) return;
     
     setIsProcessing(true);
@@ -300,10 +300,14 @@ const ChatInterface: React.FC = () => {
       };
       setMessages(prev => [...prev, newMessage]);
       
-      // Process audio with Gemini
-      // Note: You'd need to implement this in the Gemini service
-      // For now, we're just using it as text
-      await geminiService.sendTextMessage('I sent an audio message that said: "Please analyze this audio recording of my symptoms"');
+      // Send audio to Gemini
+      // If geminiService doesn't have a sendAudioMessage method yet, you might need to add it
+      if (geminiService.sendAudioMessage) {
+        await geminiService.sendAudioMessage(audioBlob);
+      } else {
+        // Fallback to text message until audio processing is implemented
+        await geminiService.sendTextMessage("I've recorded an audio message about my symptoms. Please analyze it.");
+      }
       
     } catch (error) {
       console.error('Error processing audio:', error);
