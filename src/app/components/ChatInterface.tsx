@@ -6,7 +6,7 @@ import { useDropzone } from 'react-dropzone';
 import { useReactMediaRecorder } from 'react-media-recorder';
 import { geminiService, GeminiMessage } from '../services/gemini';
 import { AiOutlineSend, AiOutlineAudio } from 'react-icons/ai';
-import { MdOutlineVideoCall, MdAttachFile } from 'react-icons/md';
+import { MdOutlineVideoCall, MdAttachFile, MdHealthAndSafety } from 'react-icons/md';
 import { RxAvatar } from 'react-icons/rx';
 import { FaRobot } from 'react-icons/fa';
 
@@ -244,30 +244,6 @@ const ChatInterface: React.FC = () => {
     }
   };
 
-  const captureAndSendFrame = async () => {
-    if (!webcamRef.current || !geminiService.isSessionActive()) return;
-    
-    try {
-      const imageSrc = webcamRef.current.getScreenshot();
-      if (imageSrc) {
-        // Add a user message indicating frame capture
-        setMessages(prev => [
-          ...prev,
-          {
-            type: 'user',
-            content: 'Sent a video frame',
-            mediaType: 'video',
-          }
-        ]);
-        
-        // Send the frame to Gemini
-        await geminiService.sendVideoFrame(imageSrc);
-      }
-    } catch (error) {
-      console.error('Error capturing and sending frame:', error);
-    }
-  };
-
   const handleAudioUpload = async (audioUrl: string) => {
     if (isProcessing || !geminiService.isSessionActive()) return;
 
@@ -344,61 +320,70 @@ const ChatInterface: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen max-w-4xl mx-auto p-4">
+    <div className="flex flex-col h-screen max-w-4xl mx-auto p-4 bg-gradient-to-br from-blue-50 to-teal-50">
+      {/* Header */}
+      <div className="bg-white shadow-md rounded-2xl px-6 py-4 mb-4 flex items-center justify-center">
+        <div className="flex items-center gap-2 text-teal-600">
+          <MdHealthAndSafety className="text-2xl" />
+          <h1 className="text-xl font-semibold">Healthcare AI Assistant</h1>
+        </div>
+      </div>
+      
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto mb-4 p-4 bg-gray-50 rounded-lg relative">
+      <div className="flex-1 overflow-y-auto mb-4 p-6 bg-white rounded-2xl shadow-md relative">
         {messages.map((message, index) => (
           <div
             key={index}
-            className={`mb-4 ${
-              message.type === 'user' ? 'text-right' : 'text-left'
+            className={`mb-6 ${
+              message.type === 'user' ? 'flex justify-end' : 'flex justify-start'
             }`}
           >
-            <div className="flex items-center gap-2">
-              {message.type === 'ai' && (
-                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
-                  <FaRobot className="text-white" />
-                </div>
-              )}
+            <div className={`flex items-start gap-3 max-w-[80%] ${
+              message.type === 'user' ? 'flex-row-reverse' : 'flex-row'
+            }`}>
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                message.type === 'user' ? 'bg-green-500' : 'bg-teal-600' 
+              }`}>
+                {message.type === 'ai' ? (
+                  <FaRobot className="text-white text-lg" />
+                ) : (
+                  <RxAvatar className="text-white text-lg" />
+                )}
+              </div>
               <div
-                className={`inline-block p-3 rounded-lg ${
+                className={`px-4 py-3 rounded-2xl ${
                   message.type === 'user'
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-gray-200 text-gray-800'
+                    ? 'bg-green-500 text-white rounded-tr-none'
+                    : 'bg-gray-100 text-gray-800 rounded-tl-none'
                 } ${
                   message.isPartial 
-                    ? 'border-2 border-blue-400 relative' 
+                    ? 'border-2 border-teal-300 relative' 
                     : ''
                 }`}
               >
                 {message.content}
                 {message.isPartial && (
                   <div className="absolute bottom-1 right-1 flex">
-                    <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce mx-0.5"></span>
-                    <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.2s' }}></span>
-                    <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.4s' }}></span>
+                    <span className="w-2 h-2 bg-teal-600 rounded-full animate-bounce mx-0.5"></span>
+                    <span className="w-2 h-2 bg-teal-600 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.2s' }}></span>
+                    <span className="w-2 h-2 bg-teal-600 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.4s' }}></span>
                   </div>
                 )}
               </div>
-              {message.type === 'user' && (
-                <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center">
-                  <RxAvatar className="text-white" />
-                </div>
-              )}
             </div>
           </div>
         ))}
         {isStreamingResponse && !messages.some(m => m.isPartial) && (
-          <div className="mb-4 text-left">
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
-                <FaRobot className="text-white" />
+          <div className="mb-4 flex justify-start">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-teal-600 flex items-center justify-center">
+                <FaRobot className="text-white text-lg" />
               </div>
-              <div className="inline-block p-3 rounded-lg bg-gray-200 text-gray-800">
+              <div className="px-4 py-3 rounded-2xl bg-gray-100 rounded-tl-none">
                 <div className="flex">
-                  <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce mx-0.5"></span>
-                  <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.2s' }}></span>
-                  <span className="w-2 h-2 bg-blue-600 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.4s' }}></span>
+                  <span className="w-2 h-2 bg-teal-600 rounded-full animate-bounce mx-0.5"></span>
+                  <span className="w-2 h-2 bg-teal-600 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.2s' }}></span>
+                  <span className="w-2 h-2 bg-teal-600 rounded-full animate-bounce mx-0.5" style={{ animationDelay: '0.4s' }}></span>
                 </div>
               </div>
             </div>
@@ -409,11 +394,11 @@ const ChatInterface: React.FC = () => {
 
       {/* Connection Status */}
       {!isConnected && (
-        <div className="mb-4 p-2 bg-yellow-100 text-yellow-800 rounded-lg text-center">
-          <p className="mb-2">Connection to AI service is closed.</p>
+        <div className="mb-4 p-4 bg-yellow-50 border border-yellow-300 text-yellow-800 rounded-2xl text-center shadow-md">
+          <p className="mb-2 font-medium">Connection to AI service is closed.</p>
           <button 
             onClick={reconnectSession}
-            className="px-4 py-1 bg-blue-500 text-white rounded"
+            className="px-5 py-2 bg-teal-600 text-white rounded-full shadow-md hover:bg-teal-700 transition-colors"
             disabled={isProcessing}
           >
             Reconnect
@@ -422,48 +407,29 @@ const ChatInterface: React.FC = () => {
       )}
 
       {/* Input Area */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex gap-2 mb-2">
+      <div className="bg-white p-5 rounded-2xl shadow-md">
+        <div className="flex gap-2 mb-3">
           <button
             onClick={toggleVideo}
-            className={`p-2 rounded ${
-              isVideoEnabled ? 'bg-red-500' : 'bg-blue-500'
-            } text-white flex items-center gap-1`}
+            className={`px-4 py-2 rounded-full ${
+              isVideoEnabled ? 'bg-red-500 hover:bg-red-600' : 'bg-teal-600 hover:bg-teal-700'
+            } text-white flex items-center gap-2 transition-colors shadow-sm`}
             disabled={isProcessing || !isConnected}
             title={isVideoEnabled ? "Video is enabled - AI can see you" : "Enable video to let AI see you"}
           >
-            <MdOutlineVideoCall />
+            <MdOutlineVideoCall className="text-lg" />
             {isVideoEnabled ? 'Video On' : 'Video Off'}
           </button>
-          <button
-            onClick={captureAndSendFrame}
-            className={`p-2 rounded bg-purple-500 text-white flex items-center gap-1`}
-            disabled={isProcessing || !isConnected || !webcamRef.current || isStreamingResponse}
-            title="Send a single frame from your camera to the AI"
-          >
-            <MdOutlineVideoCall />
-            Send Frame
-          </button>
-          <button
-            onClick={toggleAudioRecording}
-            className={`p-2 rounded ${
-              isRecording ? 'bg-red-500' : 'bg-blue-500'
-            } text-white flex items-center gap-1`}
-            disabled={isProcessing || !isConnected || isStreamingResponse}
-            title={isRecording ? "Recording audio" : "Record audio message"}
-          >
-            <AiOutlineAudio />
-            {isRecording ? 'Recording...' : 'Record Audio'}
-          </button>
+          
           <div
             {...getRootProps()}
-            className={`p-2 rounded ${
-              isProcessing || !isConnected || isStreamingResponse ? 'bg-gray-400' : 'bg-blue-500'
-            } text-white cursor-pointer flex items-center gap-1`}
+            className={`px-4 py-2 rounded-full ${
+              isProcessing || !isConnected || isStreamingResponse ? 'bg-gray-400' : 'bg-teal-600 hover:bg-teal-700'
+            } text-white cursor-pointer flex items-center gap-2 transition-colors shadow-sm`}
             title="Upload a file for AI to analyze"
           >
             <input {...getInputProps()} disabled={isProcessing || !isConnected || isStreamingResponse} />
-            <MdAttachFile />
+            <MdAttachFile className="text-lg" />
             Upload File
           </div>
         </div>
@@ -478,42 +444,62 @@ const ChatInterface: React.FC = () => {
                 handleSendMessage();
               }
             }}
-            className="flex-1 p-2 border rounded"
+            className="flex-1 p-3 border border-gray-300 focus:border-teal-500 focus:ring-1 focus:ring-teal-500 rounded-full outline-none"
             placeholder={isVideoEnabled ? "Type your message (video is enabled)" : "Type your message..."}
             disabled={isProcessing || !isConnected || isStreamingResponse}
           />
+          
+          <button
+            onClick={toggleAudioRecording}
+            className={`p-3 rounded-full ${
+              isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-teal-600 hover:bg-teal-700'
+            } text-white flex items-center justify-center transition-colors shadow-sm`}
+            disabled={isProcessing || !isConnected || isStreamingResponse}
+            title={isRecording ? "Recording audio" : "Record audio message"}
+          >
+            <AiOutlineAudio className="text-xl" />
+          </button>
+          
           <button
             onClick={handleSendMessage}
-            className={`p-2 rounded ${
-              isProcessing || !isConnected || isStreamingResponse || !inputText.trim() ? 'bg-gray-400' : 'bg-blue-500'
-            } text-white flex items-center gap-1`}
+            className={`p-3 rounded-full ${
+              isProcessing || !isConnected || isStreamingResponse || !inputText.trim() ? 'bg-gray-400' : 'bg-green-500 hover:bg-green-600'
+            } text-white flex items-center justify-center transition-colors shadow-sm`}
             disabled={isProcessing || !isConnected || isStreamingResponse || !inputText.trim()}
           >
-            <AiOutlineSend />
-            {isProcessing ? 'Processing...' : 'Send'}
+            <AiOutlineSend className="text-xl" />
           </button>
         </div>
         {isStreamingResponse && (
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-xs text-gray-500 mt-2">
             AI is generating a response...
           </div>
         )}
         {isVideoEnabled && (
-          <div className="text-xs text-gray-500 mt-1">
+          <div className="text-xs text-gray-500 mt-2">
             Video mode is active - AI can see through your camera
+          </div>
+        )}
+        {isRecording && (
+          <div className="text-xs text-red-500 mt-2 flex items-center">
+            <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse mr-1"></span>
+            Recording audio...
           </div>
         )}
       </div>
 
       {/* Video Window */}
       {isVideoEnabled && (
-        <div className="fixed bottom-4 right-4 w-64">
-          <ReactWebcam
-            ref={webcamRef}
-            audio={false}
-            screenshotFormat="image/jpeg"
-            className="rounded-lg shadow-lg"
-          />
+        <div className="fixed bottom-4 right-4 w-72">
+          <div className="bg-white p-2 rounded-2xl shadow-lg">
+            <ReactWebcam
+              ref={webcamRef}
+              audio={false}
+              screenshotFormat="image/jpeg"
+              className="rounded-xl w-full"
+            />
+            <div className="text-xs text-center text-gray-500 mt-1">Live Camera Feed</div>
+          </div>
         </div>
       )}
     </div>
