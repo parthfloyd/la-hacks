@@ -8,6 +8,7 @@ import { RxAvatar } from 'react-icons/rx';
 import { FaRobot, FaHeartbeat } from 'react-icons/fa';
 import { geminiService, GeminiMessage } from '../services/gemini';
 import dynamic from 'next/dynamic';
+import EmergencyAlert from './EmergencyAlert';
 
 // Dynamically import browser-only components
 const WebcamComponent = dynamic(() => import('./WebcamComponent'), { ssr: false });
@@ -44,15 +45,27 @@ const ChatInterface: React.FC = () => {
   const [isStreamingResponse, setIsStreamingResponse] = useState(false);
   const [isBrowser, setIsBrowser] = useState(false);
   const [reportContent, setReportContent] = useState<string | null>(null);
+  const [showEmergencyAlert, setShowEmergencyAlert] = useState(false);
+  const [emergencyMessage, setEmergencyMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const webcamRef = useRef<any>(null);
   const videoInterval = useRef<NodeJS.Timeout>();
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Check if we're in browser environment
   useEffect(() => {
     setIsBrowser(true);
   }, []);
+
+  // Focus input after receiving a response
+  const focusInput = () => {
+    if (inputRef.current && !isRecording) {
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 100);
+    }
+  };
 
   useEffect(() => {
     if (!isBrowser) return;
@@ -98,14 +111,38 @@ const ChatInterface: React.FC = () => {
     }
   }, [isVideoEnabled]);
 
+  // Auto-focus input when processing finishes
+  useEffect(() => {
+    if (!isProcessing && !isRecording && isBrowser) {
+      focusInput();
+    }
+  }, [isProcessing, isRecording]);
+
   // Check if a message contains a medical report
   const checkForReport = (content: string): boolean => {
     return content.includes('Final Report Summary') || content.includes('Healthcare Consultation Report');
   };
   
+  // Check if a message contains danger signs
+  const checkForDangerSigns = (content: string): boolean => {
+    return content.includes('##Danger Signs##');
+  };
+  
+  // Extract the danger signs message
+  const extractDangerSignsMessage = (content: string): string => {
+    const dangerSignsPattern = /##Danger Signs##([\s\S]*?)(?=##End Danger Signs##|$)/;
+    const match = content.match(dangerSignsPattern);
+    return match ? match[1].trim() : 'Potential medical emergency detected. Please seek immediate medical attention.';
+  };
+  
   // Close the report modal
   const handleCloseReport = () => {
     setReportContent(null);
+  };
+  
+  // Close the emergency alert
+  const handleCloseEmergencyAlert = () => {
+    setShowEmergencyAlert(false);
   };
 
   const initGeminiSession = async () => {
@@ -162,6 +199,22 @@ const ChatInterface: React.FC = () => {
                 setReportContent(message.text);
               }
               
+              // Check if this contains danger signs
+              if (checkForDangerSigns(message.text)) {
+                const dangerMessage = extractDangerSignsMessage(message.text);
+                setEmergencyMessage(dangerMessage);
+                setShowEmergencyAlert(true);
+                
+                // Clean the message displayed in chat by removing the danger signs markers
+                const cleanedMessage = message.text
+                  .replace(/##Danger Signs##[\s\S]*?##End Danger Signs##/g, '')
+                  .replace(/##Danger Signs##[\s\S]*/g, '')
+                  .trim();
+                
+                // Update message.text to the cleaned version for display
+                message.text = cleanedMessage || message.text;
+              }
+              
               setMessages(prev => {
                 const lastMessage = prev[prev.length - 1];
                 
@@ -200,6 +253,9 @@ const ChatInterface: React.FC = () => {
                   ];
                 }
               });
+              
+              // Return focus to input after message is processed
+              focusInput();
             }
           } else {
             console.warn('Received message without text content:', message);
@@ -261,6 +317,11 @@ const ChatInterface: React.FC = () => {
       const messageCopy = inputText;
       setInputText('');
       
+      // Maintain focus on input
+      setTimeout(() => {
+        inputRef.current?.focus();
+      }, 50);
+      
       // Send message to Gemini
       await geminiService.sendTextMessage(messageCopy);
       
@@ -275,6 +336,9 @@ const ChatInterface: React.FC = () => {
           mediaType: 'text',
         },
       ]);
+      
+      // Return focus to input even if there was an error
+      focusInput();
     } finally {
       setIsProcessing(false);
     }
@@ -454,6 +518,7 @@ const ChatInterface: React.FC = () => {
                   placeholder="Type your health question here..."
                   className="w-full px-4 py-3 pr-10 rounded-l-xl border-y border-l border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                   disabled={isProcessing || !isConnected || isStreamingResponse}
+                  ref={inputRef}
                 />
                 
                 <button
@@ -522,6 +587,14 @@ const ChatInterface: React.FC = () => {
         <ReportGenerator 
           reportContent={reportContent}
           onClose={handleCloseReport}
+        />
+      )}
+
+      {/* Emergency Alert Modal */}
+      {showEmergencyAlert && (
+        <EmergencyAlert 
+          message={emergencyMessage}
+          onClose={handleCloseEmergencyAlert}
         />
       )}
     </div>
