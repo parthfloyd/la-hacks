@@ -78,7 +78,12 @@ const ChatInterface: React.FC = () => {
       setMessages([
         {
           type: 'ai',
-          content: "Hello! I'm your HealthGuardian AI assistant. How can I help you with your health concerns today?",
+          content: "Hello! I'm your HealthGuardian AI assistant.",
+          mediaType: 'text',
+        },
+        {
+          type: 'ai',
+          content: "To begin consultation can you please tell me your age & gender first?",
           mediaType: 'text',
         }
       ]);
